@@ -6,7 +6,6 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from googletrans import Translator
 from langdetect import detect
 import pytesseract
-from PIL import Image
 from io import BytesIO
 import persian
 
@@ -16,20 +15,18 @@ translator = Translator()
 user_data = {}
 
 # Define your token and chat IDs here
-TOKEN = "1661364096:AAFLlxnJA79hsvTc_8q8kgS6zeZhXKUvvUU"
-SOURCE_CHAT_ID = 102412904  # Replace with your source chat ID
-TARGET_CHAT_ID = 102412904  # Replace with your target chat ID
+TOKEN = ""
 CHANNEL_ID = -1002166152197
 
 def forward_message(update: Update, context) -> None:
     message = update.message
-    if message.from_user.id not in [102412904, 1371243348]:
+    if message.from_user.id not in ["your chat id"]:
         if message and update.message.chat.type == "private":
             context.bot.forward_message(chat_id=CHANNEL_ID, from_chat_id=message.chat_id, message_id=message.message_id)
             first_name = message.from_user.first_name
             user_id = message.from_user.id
             user_name = message.from_user.username
-            info_text = f"فرستنده: {first_name}\nآی‌دی عددی: {user_id}\n یوزرنیم: {user_name}"
+            info_text = f"sender: {first_name}\n NumericUser: {user_id}\n Username: {user_name}"
             context.bot.send_message(chat_id=CHANNEL_ID, text=info_text)
 
 def start(update, context):
@@ -58,9 +55,6 @@ def translate_message(update, context):
     if user_id in user_data and user_data[user_id]['is_translating']:
         msg = update.message.text
         detected_lang = detect(msg)
-        if msg == "حانیه":
-            context.bot.send_message(chat_id=update.message.from_user.id, text="⁪⁬⁮⁮⁮⁮⁪⁬⁮⁮⁮⁮")
-            return None
         
         target_language = user_data[user_id]['target_language']
         if detected_lang == target_language:
@@ -72,14 +66,8 @@ def translate_message(update, context):
             except Exception as e:
                 context.bot.send_message(chat_id=update.message.from_user.id, text=f"Error occurred: {e}")
 
-def img2txt(update, context):
-    user_id = update.message.from_user.id
-    user_data[user_id] = {'is_translating': False, 'target_language': None}
-    context.bot.send_message(chat_id=update.message.from_user.id, text="Please send an image.")
 
 
-def persianchar(update, context):
-    context.bot.send_message(chat_id=update.message.from_user.id, text="For organization type persian message with english keyboard. \n (this is ordered by owner LOL)")
 
 def organization(update, context):
     msg = update.message.text
@@ -94,7 +82,6 @@ def button(update: Update, context):
     query.answer()
     context.bot.send_message(chat_id=query.message.chat_id, text=f"Selected target language: {query.data}\nYou can now send the text to translate.")
 
-import requests
 
 joke_apis = [
     'https://v2.jokeapi.dev/joke/Any?type=single',
@@ -102,6 +89,7 @@ joke_apis = [
     'https://api.icndb.com/jokes/random',
     'https://icanhazdadjoke.com/',
 ]
+# maybe some of them close in future
 
 def get_random_joke():
     try:
@@ -125,38 +113,21 @@ def joke(update, context):
     chat_id = update.message.chat_id
     joke_text = get_random_joke()
     
-    # Send joke to the chat where the command was issued
     context.bot.send_message(chat_id=chat_id, text=joke_text)
 
 def main():
-    # ساخت آپدیتر و دیسپچر
+
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
 
-    # ثبت هندلرهای خاص‌تر اول
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("translate", translate))
     dp.add_handler(CommandHandler("stop", stop))
-    dp.add_handler(CommandHandler("img2txt", img2txt))
-    dp.add_handler(CommandHandler("PersianCh", persianchar))
-    dp.add_handler(CommandHandler("joke", joke))  # اضافه کردن هندلر برای دستور /joke
-    
-    # هندلر برای دریافت دکمه‌ها
+    dp.add_handler(CommandHandler("joke", joke))
     dp.add_handler(CallbackQueryHandler(button))
-
-    # فقط برای پیام‌های متنی در چت‌های خصوصی که دستور نیستند
     dp.add_handler(MessageHandler(Filters.text & Filters.chat_type.private & ~Filters.command, translate_message))
-
-    # هندلر برای پیام‌های متنی در چت‌های خصوصی برای سازماندهی پیام
     dp.add_handler(MessageHandler(Filters.text & Filters.chat_type.private, organization))
-
-    # هندلر برای دریافت عکس در چت‌های خصوصی
-
-
-    # فوروارد کردن پیام‌ها فقط در چت‌های خصوصی
     dp.add_handler(MessageHandler(Filters.all & Filters.chat_type.private, forward_message), group=1)
-
-    # شروع ربات
     updater.start_polling()
     updater.idle()
 
