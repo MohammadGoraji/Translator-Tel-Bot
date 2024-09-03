@@ -10,6 +10,6 @@ joke - joke,
 stop - stop translating,
 ]
 4. install requirements.txt
-
+5. run <main.py> in your host.
 
 > 𝓕𝓔𝓔𝓛 𝓕𝓡𝓔𝓔 𝓣𝓞 𝓤𝓢𝓔 𝓐𝓝𝓓 𝓘𝓝𝓙𝓞𝓨 :)
