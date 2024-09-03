@@ -15,8 +15,9 @@ translator = Translator()
 user_data = {}
 
 # Define your token and chat IDs here
-TOKEN = ""
+TOKEN = "1661364096:AAENPCrbkPY8ZRIW1TXcTnMMrECx2lKVcBQ"
 CHANNEL_ID = -1002166152197
+
 
 def forward_message(update: Update, context) -> None:
     message = update.message
@@ -29,20 +30,24 @@ def forward_message(update: Update, context) -> None:
             info_text = f"sender: {first_name}\n NumericUser: {user_id}\n Username: {user_name}"
             context.bot.send_message(chat_id=CHANNEL_ID, text=info_text)
 
+
 def start(update, context):
     message = "WELCOME " + update.message.from_user.first_name + "\n" + "For start translating enter /translate \n For image to text try /img2txt "
     context.bot.send_message(chat_id=update.message.from_user.id, text=message)
 
+
 def translate(update, context):
     user_id = update.message.from_user.id
     user_data[user_id] = {'is_translating': True, 'target_language': 'en'}
-    
+
     keyboard = [
         [InlineKeyboardButton("English", callback_data='en')],
         [InlineKeyboardButton("Persian", callback_data='fa')],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    context.bot.send_message(chat_id=update.message.from_user.id, text="Please select the target language for translation:", reply_markup=reply_markup)
+    context.bot.send_message(chat_id=update.message.from_user.id,
+                             text="Please select the target language for translation:", reply_markup=reply_markup)
+
 
 def stop(update, context):
     user_id = update.message.from_user.id
@@ -50,15 +55,17 @@ def stop(update, context):
         user_data[user_id]['is_translating'] = False
     context.bot.send_message(chat_id=update.message.from_user.id, text="Translating stopped...")
 
+
 def translate_message(update, context):
     user_id = update.message.from_user.id
     if user_id in user_data and user_data[user_id]['is_translating']:
         msg = update.message.text
         detected_lang = detect(msg)
-        
+
         target_language = user_data[user_id]['target_language']
         if detected_lang == target_language:
-            context.bot.send_message(chat_id=update.message.from_user.id, text="The text is already in the target language.")
+            context.bot.send_message(chat_id=update.message.from_user.id,
+                                     text="The text is already in the target language.")
         else:
             try:
                 translated = translator.translate(msg, dest=target_language).text
@@ -67,12 +74,11 @@ def translate_message(update, context):
                 context.bot.send_message(chat_id=update.message.from_user.id, text=f"Error occurred: {e}")
 
 
-
-
 def organization(update, context):
     msg = update.message.text
     org = persian.enToPersianChar(msg)
     context.bot.send_message(chat_id=update.message.from_user.id, text=org)
+
 
 def button(update: Update, context):
     query = update.callback_query
@@ -80,7 +86,8 @@ def button(update: Update, context):
     if user_id in user_data:
         user_data[user_id]['target_language'] = query.data
     query.answer()
-    context.bot.send_message(chat_id=query.message.chat_id, text=f"Selected target language: {query.data}\nYou can now send the text to translate.")
+    context.bot.send_message(chat_id=query.message.chat_id,
+                             text=f"Selected target language: {query.data}\nYou can now send the text to translate.")
 
 
 joke_apis = [
@@ -89,6 +96,8 @@ joke_apis = [
     'https://api.icndb.com/jokes/random',
     'https://icanhazdadjoke.com/',
 ]
+
+
 # maybe some of them close in future
 
 def get_random_joke():
@@ -109,14 +118,15 @@ def get_random_joke():
     except Exception as e:
         return f"Error occurred while fetching joke: {e}"
 
+
 def joke(update, context):
     chat_id = update.message.chat_id
     joke_text = get_random_joke()
-    
+
     context.bot.send_message(chat_id=chat_id, text=joke_text)
 
-def main():
 
+def main():
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
 
@@ -131,6 +141,6 @@ def main():
     updater.start_polling()
     updater.idle()
 
+
 if __name__ == '__main__':
     main()
-

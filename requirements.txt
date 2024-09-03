@@ -1,0 +1,6 @@
+googletrans==4.0.0rc1
+langdetect==1.0.9
+persian==0.5.0
+pytesseract==0.3.10
+python-telegram-bot==21.5
+Requests==2.32.3
