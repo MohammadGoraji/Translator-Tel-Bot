@@ -15,7 +15,7 @@ translator = Translator()
 user_data = {}
 
 # Define your token and chat IDs here
-TOKEN = "1661364096:AAENPCrbkPY8ZRIW1TXcTnMMrECx2lKVcBQ"
+TOKEN = ""
 CHANNEL_ID = -1002166152197
 
 
