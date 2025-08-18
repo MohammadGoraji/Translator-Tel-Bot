@@ -1,131 +1,91 @@
+import os
 import logging
-import requests
 import random
+import requests
 from telegram.ext import Updater, MessageHandler, CommandHandler, Filters, CallbackQueryHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from googletrans import Translator
 from langdetect import detect
-import pytesseract
-from io import BytesIO
 import persian
+from dotenv import load_dotenv
+
+# ---------------- CONFIG ----------------
+load_dotenv()
+TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL_ID = int(os.getenv("CHANNEL_ID", "-100123456789"))
 
 translator = Translator()
-
-# Dictionnary to store user-specific data
 user_data = {}
 
-# Define your token and chat IDs here
-TOKEN = "1661364096:AAENPCrbkPY8ZRIW1TXcTnMMrECx2lKVcBQ"
-CHANNEL_ID = -1002166152197
-
-
-def forward_message(update: Update, context) -> None:
-    message = update.message
-    if message.from_user.id not in ["your chat id"]:
-        if message and update.message.chat.type == "private":
-            context.bot.forward_message(chat_id=CHANNEL_ID, from_chat_id=message.chat_id, message_id=message.message_id)
-            first_name = message.from_user.first_name
-            user_id = message.from_user.id
-            user_name = message.from_user.username
-            info_text = f"sender: {first_name}\n NumericUser: {user_id}\n Username: {user_name}"
-            context.bot.send_message(chat_id=CHANNEL_ID, text=info_text)
-
-
+# ---------------- HANDLERS ----------------
 def start(update, context):
-    message = "WELCOME " + update.message.from_user.first_name + "\n" + "For start translating enter /translate \n For image to text try /img2txt "
-    context.bot.send_message(chat_id=update.message.from_user.id, text=message)
-
+    msg = (
+        f"👋 Welcome {update.message.from_user.first_name}!\n\n"
+        "➡️ Use /translate to start translating.\n"
+        "➡️ Use /img2txt for image-to-text (coming soon).\n"
+        "➡️ Use /joke for a random joke."
+    )
+    context.bot.send_message(chat_id=update.message.chat_id, text=msg)
 
 def translate(update, context):
-    user_id = update.message.from_user.id
-    user_data[user_id] = {'is_translating': True, 'target_language': 'en'}
+    uid = update.message.from_user.id
+    user_data[uid] = {"is_translating": True, "target_language": "en"}
 
     keyboard = [
-        [InlineKeyboardButton("English", callback_data='en')],
-        [InlineKeyboardButton("Persian", callback_data='fa')],
+        [InlineKeyboardButton("English", callback_data="en")],
+        [InlineKeyboardButton("Persian", callback_data="fa")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    context.bot.send_message(chat_id=update.message.from_user.id,
-                             text="Please select the target language for translation:", reply_markup=reply_markup)
-
+    context.bot.send_message(chat_id=uid, text="Select target language:", reply_markup=reply_markup)
 
 def stop(update, context):
-    user_id = update.message.from_user.id
-    if user_id in user_data:
-        user_data[user_id]['is_translating'] = False
-    context.bot.send_message(chat_id=update.message.from_user.id, text="Translating stopped...")
-
+    uid = update.message.from_user.id
+    if uid in user_data:
+        user_data[uid]["is_translating"] = False
+    context.bot.send_message(chat_id=uid, text="✅ Translating stopped.")
 
 def translate_message(update, context):
-    user_id = update.message.from_user.id
-    if user_id in user_data and user_data[user_id]['is_translating']:
+    uid = update.message.from_user.id
+    if uid in user_data and user_data[uid]["is_translating"]:
         msg = update.message.text
-        detected_lang = detect(msg)
+        target = user_data[uid]["target_language"]
 
-        target_language = user_data[user_id]['target_language']
-        if detected_lang == target_language:
-            context.bot.send_message(chat_id=update.message.from_user.id,
-                                     text="The text is already in the target language.")
-        else:
-            try:
-                translated = translator.translate(msg, dest=target_language).text
-                context.bot.send_message(chat_id=update.message.from_user.id, text=translated)
-            except Exception as e:
-                context.bot.send_message(chat_id=update.message.from_user.id, text=f"Error occurred: {e}")
-
-
-def organization(update, context):
-    msg = update.message.text
-    org = persian.enToPersianChar(msg)
-    context.bot.send_message(chat_id=update.message.from_user.id, text=org)
-
+        try:
+            if detect(msg) == target:
+                context.bot.send_message(chat_id=uid, text="ℹ️ Already in target language.")
+            else:
+                translated = translator.translate(msg, dest=target).text
+                context.bot.send_message(chat_id=uid, text=translated)
+        except Exception as e:
+            context.bot.send_message(chat_id=uid, text=f"❌ Error: {e}")
 
 def button(update: Update, context):
     query = update.callback_query
-    user_id = query.message.chat_id
-    if user_id in user_data:
-        user_data[user_id]['target_language'] = query.data
+    uid = query.message.chat_id
+    if uid in user_data:
+        user_data[uid]["target_language"] = query.data
     query.answer()
-    context.bot.send_message(chat_id=query.message.chat_id,
-                             text=f"Selected target language: {query.data}\nYou can now send the text to translate.")
+    query.edit_message_text(text=f"✅ Target language set to {query.data}. Now send text to translate.")
 
-
+# ---------------- JOKES ----------------
 joke_apis = [
-    'https://v2.jokeapi.dev/joke/Any?type=single',
-    'https://v2.jokeapi.dev/joke/Any?lang=en',
-    'https://api.icndb.com/jokes/random',
-    'https://icanhazdadjoke.com/',
+    "https://v2.jokeapi.dev/joke/Any?type=single",
+    "https://icanhazdadjoke.com/",
 ]
 
-
-# maybe some of them close in future
-
-def get_random_joke():
+def get_joke():
     try:
-        api_url = random.choice(joke_apis)
-        if 'icanhazdadjoke' in api_url:
-            response = requests.get(api_url, headers={'Accept': 'application/json'})
-            joke_data = response.json()
-            joke_text = joke_data.get('joke', 'No joke found!')
-        else:
-            response = requests.get(api_url)
-            joke_data = response.json()
-            if joke_data.get('type') == 'single':
-                joke_text = joke_data.get('joke', 'No joke found!')
-            else:
-                joke_text = f"{joke_data.get('setup', 'No joke found!')} - {joke_data.get('delivery', '')}"
-        return joke_text
+        url = random.choice(joke_apis)
+        headers = {"Accept": "application/json"}
+        resp = requests.get(url, headers=headers).json()
+        return resp.get("joke") or resp.get("setup", "") + " " + resp.get("delivery", "")
     except Exception as e:
-        return f"Error occurred while fetching joke: {e}"
-
+        return f"❌ Joke fetch error: {e}"
 
 def joke(update, context):
-    chat_id = update.message.chat_id
-    joke_text = get_random_joke()
+    context.bot.send_message(chat_id=update.message.chat_id, text=get_joke())
 
-    context.bot.send_message(chat_id=chat_id, text=joke_text)
-
-
+# ---------------- MAIN ----------------
 def main():
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
@@ -135,12 +95,10 @@ def main():
     dp.add_handler(CommandHandler("stop", stop))
     dp.add_handler(CommandHandler("joke", joke))
     dp.add_handler(CallbackQueryHandler(button))
-    dp.add_handler(MessageHandler(Filters.text & Filters.chat_type.private & ~Filters.command, translate_message))
-    dp.add_handler(MessageHandler(Filters.text & Filters.chat_type.private, organization))
-    dp.add_handler(MessageHandler(Filters.all & Filters.chat_type.private, forward_message), group=1)
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, translate_message))
+
     updater.start_polling()
     updater.idle()
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
